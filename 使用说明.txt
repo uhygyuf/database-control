@@ -1,0 +1,39 @@
+数据库服务手动管理说明(2026-09-05 配置)
+==========================================
+
+背景
+----
+MySQL (MySQL84) 和 Oracle 11g (ORCL) 的服务原为"自动启动"(开机自启),
+已改为"手动启动":开机不再自动运行,需要用的时候手动启动。
+
+涉及的服务(全部改为"手动")
+----------------------------
+  MySQL84                          MySQL 8.4 数据库
+  OracleServiceORCL                Oracle 11g 数据库实例(核心)
+  OracleOraDb11g_home1TNSListener  Oracle 网络监听(SQL*Net 连接必需)
+  OracleDBConsoleorcl              Oracle Enterprise Manager 网页控制台
+  OracleMTSRecoveryService         MS DTC 分布式事务恢复
+
+使用方法
+--------
+  1. 启动:双击 start-databases.bat(弹出 UAC 点"是",下同)
+  2. 停止:双击 stop-databases.bat
+  3. 全部启动后,MySQL 用 root 连接;Oracle 用 sqlplus user/pass@orcl 连接
+     (连接报 ORA-12541 说明监听没起来,先运行 start-databases.bat)
+
+注意
+----
+* 双击脚本后弹出的黑色窗口会显示每个服务的启停结果,完成后按任意键关闭。
+* 设置只影响"开机自启",不影响当前已在运行的服务(重启后生效)。
+* 想改回开机自启:右键 restore-autostart.ps1 -> 使用 PowerShell 运行
+  (或右键"运行方式"选择 PowerShell),同样只需一次。
+
+命令行对照(管理员 CMD)
+----------------------
+  改手动:  sc config MySQL84 start= demand
+           sc config OracleServiceORCL start= demand
+           sc config OracleOraDb11g_home1TNSListener start= demand
+           sc config OracleDBConsoleorcl start= demand
+           sc config OracleMTSRecoveryService start= demand
+  恢复自启: 同上,把 demand 换成 auto
+  手动启停: net start/stop <服务名>
