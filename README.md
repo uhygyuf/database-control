@@ -1,30 +1,54 @@
 # Database Control Scripts (Windows)
 
-Manage MySQL (MySQL84) and Oracle 11g (ORCL) services on Windows:
-switch them from auto-start to manual startup, then start/stop them on demand.
+Start/stop the local database services **per database** — PostgreSQL, MySQL and Oracle
+are independent, so you only launch what you need.
 
-## Files
+## Layout
 
 | File | Purpose |
 |------|---------|
-| `set-db-manual.ps1` | One-time setup: set 5 services to Manual startup (run as Administrator) |
-| `restore-autostart.ps1` | Rollback: restore Automatic startup |
-| `start-databases.bat` | Start all DB services (self-elevating, UAC prompt) |
-| `stop-databases.bat` | Stop all DB services (self-elevating, UAC prompt) |
-| `create-shortcuts.ps1` | (Optional) create desktop shortcuts using Unicode code points to avoid encoding issues |
+| `db-service.ps1` | The engine: holds the service names per database and does Start / Stop / Status. The `.bat` files are thin wrappers around it. |
+| `start-pgsql.bat` / `stop-pgsql.bat` | PostgreSQL only |
+| `start-mysql.bat` / `stop-mysql.bat` | MySQL only |
+| `start-oracle.bat` / `stop-oracle.bat` | Oracle only (4 services as one group) |
+| `start-databases.bat` / `stop-databases.bat` | All three at once |
+| `status-databases.bat` | Read-only status + startup type of every service (no UAC) |
+| `set-db-manual.ps1` | One-time setup: set services to Manual startup (default `-Target mysql,oracle`) |
+| `restore-autostart.ps1` | Rollback: set services back to Automatic (same `-Target` options) |
+| `create-shortcuts.ps1` | (Re)build the desktop shortcuts folder |
 | `使用说明.txt` | Chinese usage guide |
 
-## Affected services
+## Services
 
-- `MySQL84` — MySQL 8.4
-- `OracleServiceORCL` — Oracle 11g database instance (core)
-- `OracleOraDb11g_home1TNSListener` — SQL*Net listener
-- `OracleDBConsoleorcl` — Enterprise Manager web console
-- `OracleMTSRecoveryService` — MS DTC distributed transaction recovery
+| Database | Service name | Startup |
+|----------|--------------|---------|
+| PostgreSQL 18 | `postgresql-x64-18` | Automatic (left as-is) |
+| MySQL 8.4 | `MySQL84` | Manual |
+| Oracle 11g (ORCL) | `OracleServiceORCL` | Manual |
+| Oracle 11g | `OracleOraDb11g_home1TNSListener` | Manual |
+| Oracle 11g | `OracleDBConsoleorcl` | Manual |
+| Oracle 11g | `OracleMTSRecoveryService` | Manual |
 
 ## Usage
 
-1. Run `set-db-manual.ps1` once as Administrator (services stop auto-starting at boot;
-   running services are unaffected until reboot).
-2. Double-click `start-databases.bat` / `stop-databases.bat` to start/stop everything
-   (accept the UAC prompt). Service names are machine-specific — adjust before reuse.
+Double-click the `.bat` for the database you want (accept the UAC prompt — starting a
+service without administrator rights fails with `error 5`). `status-databases.bat` needs
+no elevation.
+
+From an elevated shell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File db-service.ps1 -Action Start  -Target pgsql
+powershell -ExecutionPolicy Bypass -File db-service.ps1 -Action Status -Target all
+```
+
+`-Action` = `Start` | `Stop` | `Status`, `-Target` = `pgsql` | `mysql` | `oracle` | `all`.
+
+To make PostgreSQL manual as well:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File set-db-manual.ps1 -Target pgsql
+```
+
+Service names are machine-specific: edit the `$Groups` table at the top of
+`db-service.ps1` (and in the two startup-type scripts) before reusing this elsewhere.

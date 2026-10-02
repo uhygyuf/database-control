@@ -1,39 +1,71 @@
-数据库服务手动管理说明(2026-09-05 配置)
+数据库服务管理说明(2026-10-02 改为按库拆分)
 ==========================================
 
 背景
 ----
-MySQL (MySQL84) 和 Oracle 11g (ORCL) 的服务原为"自动启动"(开机自启),
-已改为"手动启动":开机不再自动运行,需要用的时候手动启动。
+MySQL (MySQL84) 和 Oracle 11g (ORCL) 的服务原为"自动启动", 已改为"手动"。
+PostgreSQL (postgresql-x64-18) 目前仍是"自动"(开机自启)。
+以前是"一个脚本启停全部", 现在拆成**每个数据库一套启停脚本**,
+想开哪个开哪个, 互不影响。
 
-涉及的服务(全部改为"手动")
-----------------------------
-  MySQL84                          MySQL 8.4 数据库
-  OracleServiceORCL                Oracle 11g 数据库实例(核心)
-  OracleOraDb11g_home1TNSListener  Oracle 网络监听(SQL*Net 连接必需)
-  OracleDBConsoleorcl              Oracle Enterprise Manager 网页控制台
-  OracleMTSRecoveryService         MS DTC 分布式事务恢复
-
-使用方法
---------
-  1. 启动:双击 start-databases.bat(弹出 UAC 点"是",下同)
-  2. 停止:双击 stop-databases.bat
-  3. 全部启动后,MySQL 用 root 连接;Oracle 用 sqlplus user/pass@orcl 连接
-     (连接报 ORA-12541 说明监听没起来,先运行 start-databases.bat)
-
-注意
-----
-* 双击脚本后弹出的黑色窗口会显示每个服务的启停结果,完成后按任意键关闭。
-* 设置只影响"开机自启",不影响当前已在运行的服务(重启后生效)。
-* 想改回开机自启:右键 restore-autostart.ps1 -> 使用 PowerShell 运行
-  (或右键"运行方式"选择 PowerShell),同样只需一次。
-
-命令行对照(管理员 CMD)
+一台机器上的服务对照表
 ----------------------
-  改手动:  sc config MySQL84 start= demand
-           sc config OracleServiceORCL start= demand
-           sc config OracleOraDb11g_home1TNSListener start= demand
-           sc config OracleDBConsoleorcl start= demand
-           sc config OracleMTSRecoveryService start= demand
-  恢复自启: 同上,把 demand 换成 auto
-  手动启停: net start/stop <服务名>
+  PostgreSQL   postgresql-x64-18                      (当前: 自动, 常驻运行)
+  MySQL        MySQL84                                (手动)
+  Oracle       OracleServiceORCL                      (手动) 数据库实例(核心)
+               OracleOraDb11g_home1TNSListener         (手动) 网络监听, SQL*Net 连接必需
+               OracleDBConsoleorcl                     (手动) Enterprise Manager 网页控制台
+               OracleMTSRecoveryService                (手动) MS DTC 分布式事务恢复
+
+双击就用(桌面快捷方式)
+----------------------
+桌面 -> "数据库控制" 文件夹(9 个快捷方式):
+
+  启动 PostgreSQL / 停止 PostgreSQL
+  启动 MySQL      / 停止 MySQL
+  启动 Oracle     / 停止 Oracle
+  全部启动        / 全部停止          (三个库一起)
+  数据库状态                          (只读, 不弹 UAC, 看谁在跑)
+
+* 启动/停止类会弹 UAC 点"是"; UAC 是必须的(不加管理员权限 net start 会报 error 5)。
+* 状态类不需要管理员权限, 直接看。
+* 桌面原来那两个"启动数据库/停止数据库"快捷方式仍然可用(= 现在的全部启动/全部停止),
+  想清爽可以自己删掉, 删了不影响任何功能。
+
+脚本(都在 E:\Hermes\DatabaseControl\)
+------------------------------------
+  start-pgsql.bat  / stop-pgsql.bat      PostgreSQL 启停
+  start-mysql.bat  / stop-mysql.bat      MySQL 启停
+  start-oracle.bat / stop-oracle.bat     Oracle 启停(4 个服务一组)
+  start-databases.bat / stop-databases.bat   全部启停
+  status-databases.bat                       查看状态(无需管理员)
+  db-service.ps1                             引擎: 服务名清单+启停逻辑都在这里
+  create-shortcuts.ps1                       重建桌面快捷方式
+  set-db-manual.ps1                          改"手动启动"(默认 mysql+oracle)
+  restore-autostart.ps1                      改回"开机自启"(默认 mysql+oracle)
+
+想改服务名单(比如数据库升级换了服务名)
+--------------------------------------
+只改 db-service.ps1 顶部 $Groups 里的名字, 所有 .bat / 快捷方式自动跟着变。
+
+PostgreSQL 要不要也改成手动启动?
+-------------------------------
+现在它还是开机自启(常驻)。如果也想"要用才开", 管理员 PowerShell 里跑:
+
+  改手动:   powershell -ExecutionPolicy Bypass -File E:\Hermes\DatabaseControl\set-db-manual.ps1 -Target pgsql
+  改回自启: powershell -ExecutionPolicy Bypass -File E:\Hermes\DatabaseControl\restore-autostart.ps1 -Target pgsql
+
+命令行(管理员 PowerShell / CMD)
+-------------------------------
+  cd E:\Hermes\DatabaseControl
+  powershell -ExecutionPolicy Bypass -File db-service.ps1 -Action Start  -Target pgsql
+  powershell -ExecutionPolicy Bypass -File db-service.ps1 -Action Stop   -Target oracle
+  powershell -ExecutionPolicy Bypass -File db-service.ps1 -Action Status -Target all
+  Target 可填: pgsql / mysql / oracle / all
+
+常见问题
+--------
+* Oracle 连接报 ORA-12541 -> 监听没起来, 先跑"启动 Oracle"。
+* 全部启动/停止时会打印 [skip] ... already running/stopped, 表示本来就那样, 不是错误。
+* 有 [FAILED] 的行才说明启动失败, 那一行会带出系统给的原因。
+* 想整体改回开机自启: 跑 restore-autostart.ps1 -Target all。
