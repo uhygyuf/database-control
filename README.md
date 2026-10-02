@@ -66,3 +66,29 @@ MySQL's `.err` log and the recent Application event-log entries — the SCM's ow
 If that file is ever removed, mysqld exits immediately and the service reports only
 "Failed to start service". Keep it in place (it holds `basedir`, `datadir`, `port`).
 
+## Installing / upgrading the server
+
+`install-mysql-8.4.11-v2.bat` (double-click, self-elevating) replaces the server with the
+current 8.4 LTS package and configures a fresh instance end to end:
+
+1. kill stale `msiexec.exe`, remove the old service
+2. silent MSI install (falls back to the official ZIP archive if the MSI does not land)
+3. rename the old `C:\ProgramData\MySQL\MySQL Server 8.4` aside (never deletes it)
+4. write `my.ini`, `mysqld --initialize-insecure`, register `MySQL84` as Manual, start it
+5. set the root password and verify it over TCP, then print a PASS/FAIL report to
+   `mysql-reinstall-report.txt`
+
+### Pitfall: a silent MSI install that "succeeds" but installs nothing
+
+If a `msiexec.exe` from an earlier run is still alive it holds the Windows Installer
+mutex: the next `msiexec /i ... /qn` returns exit code 0, writes **no log at all**, and
+installs nothing. Always kill leftover `msiexec.exe` processes before a silent install
+and treat "no log file" as the symptom. Related: give `/l*v` a space-free path — an
+8.3-style path such as `C:\Users\LEOWAN~1\...` can make the log fail to open.
+
+## Inspecting a damaged data directory
+
+`inspect-mysql.bat` is read-only: it lists what is left in the data directory, any shadow
+copies, System Restore points, stray InnoDB files, and the service ACL — the checks that
+decide whether an old instance can still be recovered or only rebuilt.
+
