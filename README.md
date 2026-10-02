@@ -52,3 +52,17 @@ powershell -ExecutionPolicy Bypass -File set-db-manual.ps1 -Target pgsql
 
 Service names are machine-specific: edit the `$Groups` table at the top of
 `db-service.ps1` (and in the two startup-type scripts) before reusing this elsewhere.
+
+## Logs
+
+Every run overwrites `last-run.log` in this folder, so a failed run can be inspected
+after the console window is closed. On a failed start the engine also prints the tail of
+MySQL's `.err` log and the recent Application event-log entries — the SCM's own message
+("Failed to start service") never contains the real reason.
+
+## MySQL gotcha
+
+`MySQL84`'s command line passes an absolute `--defaults-file="C:\ProgramData\MySQL\MySQL Server 8.4\my.ini"`.
+If that file is ever removed, mysqld exits immediately and the service reports only
+"Failed to start service". Keep it in place (it holds `basedir`, `datadir`, `port`).
+

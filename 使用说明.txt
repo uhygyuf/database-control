@@ -69,3 +69,17 @@ PostgreSQL 要不要也改成手动启动?
 * 全部启动/停止时会打印 [skip] ... already running/stopped, 表示本来就那样, 不是错误。
 * 有 [FAILED] 的行才说明启动失败, 那一行会带出系统给的原因。
 * 想整体改回开机自启: 跑 restore-autostart.ps1 -Target all。
+
+日志
+----
+每次运行的完整输出都会覆盖写入同目录的 last-run.log(控制台窗口关掉也还在),
+失败时先看它; 引擎在服务启动失败时会自动把 MySQL 的 .err 日志尾部和最近的
+应用程序事件日志打印出来, 那才是真实原因。
+
+MySQL84 曾经启动失败的原因(2026-10-02 已修)
+-------------------------------------------
+服务命令行里写死了 --defaults-file="C:\ProgramData\MySQL\MySQL Server 8.4\my.ini",
+而那份 my.ini 不知何时被删掉了, mysqld 找不到必需的配置文件就立即退出,
+SCM 只能报一句 "Failed to start service"。已按原装结构重建该文件
+(basedir / datadir = C:\ProgramData\MySQL\MySQL Server 8.4\Data / port 3306)。
+**这个文件不能删**; 删了 MySQL 就起不来。目录 C:\ProgramData\MySQL 也不要被清理软件动。
